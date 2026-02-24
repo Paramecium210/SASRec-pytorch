@@ -1,6 +1,8 @@
 # SASRec — 逐次推薦モデル（Sequential Recommendation）
 
-> **Self-Attentive Sequential Recommendation** の PyTorch 実装。  
+>これは SASRec (Self-Attentive Sequential Recommendation) の PyTorch による再現実装リポジトリです。
+>MovieLens 1M データセットに加え、中国の MOOC プラットフォームにおける学生の選課データセット（逐次行動データ）に対応し>ています。
+>データの前処理（IDリマッピング）から、Self-Attention を用いたモデル学習、および HR/NDCG 指標による精度評価までを一貫してサポートしています。
 > ユーザーの行動履歴（アイテム閲覧・受講順序など）をもとに、次に興味を持つアイテムを予測する逐次推薦モデルです。
 
 ---
@@ -17,9 +19,7 @@
 8. [コマンドライン引数一覧](#8-コマンドライン引数一覧)
 9. [出力ファイルの説明](#9-出力ファイルの説明)
 10. [評価指標の説明](#10-評価指標の説明)
-11. [学習の流れ（内部処理）](#11-学習の流れ内部処理)
-12. [カスタムデータセットへの対応](#12-カスタムデータセットへの対応)
-13. [参考文献](#13-参考文献)
+11. [参考文献](#11-参考文献)
 
 ---
 
@@ -76,37 +76,6 @@ SASRec/
 └── README.md
 ```
 
-### 各ファイルの役割詳細
-
-#### `main.py`
-学習全体を制御するエントリーポイントです。以下の処理を順番に実行します。
-
-1. コマンドライン引数のパース
-2. データの読み込みと分割（`utils.data_partition`）
-3. マルチプロセスサンプラーの初期化（`WarpSampler`）
-4. SASRec モデルの構築と GPU への転送
-5. Adam オプティマイザと BCE 損失の定義
-6. エポックごとの学習ループ
-7. 20エポックごとの検証集評価と最良モデルの保存
-8. 学習曲線グラフの生成・保存
-9. 最良モデルによる最終テスト評価
-
-#### `model.py`
-SASRec モデルの PyTorch 実装です。2つのクラスで構成されています。
-
-- `PointWiseFeedForward`：Conv1d を用いた位置ごとの Feed-Forward ネットワーク
-- `SASRec`：メインモデル。`log2feats()` で系列をエンベディング→注意機構処理し、`forward()` で訓練用ロジット、`predict()` で推論スコアを出力
-
-#### `utils.py`
-データ処理と評価に関するユーティリティです。
-
-- `data_partition(fname)`：テキストファイルを読み込み、各ユーザーの最後のアイテムをテスト、最後から2番目を検証、それ以外を訓練データに分割
-- `WarpSampler`：マルチプロセスで非同期にミニバッチをサンプリング
-- `evaluate(model, dataset, args, is_test)`：HR@5 / HR@10 / NDCG@5 / NDCG@10 を計算
-
-#### `dat2txt.py`
-MovieLens 1M の生データ（`.dat` 形式）を本プロジェクトが読み込める `user item` テキスト形式に変換します。ユーザーID・アイテムIDの連続番号への再採番、タイムスタンプ順ソートを行います。
-
 ---
 
 ## 4. 動作環境・依存ライブラリ
@@ -128,8 +97,6 @@ numpy
 matplotlib
 pandas
 ```
-
-> **注意**：PyTorch は CUDA バージョンに合わせて個別にインストールする必要があります（後述）。
 
 ---
 
@@ -374,68 +341,9 @@ NDCG@K = (1 / log2(rank + 2))   ※ rank は 0 始まり
 
 ---
 
-## 11. 学習の流れ（内部処理）
 
-```
-1. data_partition()
-   → data/<name>.txt を読み込み
-   → train / valid / test に分割
 
-2. WarpSampler（マルチプロセス）
-   → ランダムにユーザーを選択
-   → 系列（seq）、正例（pos）、負例（neg）をサンプリング
-   → キューに非同期でバッチを送出
-
-3. 学習ループ（各エポック）
-   for batch in sampler:
-       pos_logits, neg_logits = model(u, seq, pos, neg)
-       loss = BCE(pos_logits, 1) + BCE(neg_logits, 0)
-       loss.backward()
-       optimizer.step()
-
-4. 検証（20エポックごと）
-   → evaluate(model, dataset, is_test=False)
-   → NDCG@10 が改善した場合はモデル重みを保存
-
-5. 最終テスト
-   → 最良モデルを読み込んで evaluate(is_test=True)
-   → HR@5 / NDCG@5 / HR@10 / NDCG@10 を表示
-```
-
----
-
-## 12. カスタムデータセットへの対応
-
-任意のデータセットで学習するには、以下の形式でファイルを作成してください。
-
-### 手順
-
-1. データを `user item` 形式（スペース区切り）に変換する
-2. ユーザーIDとアイテムIDを 1 始まりの連続整数に変換する
-3. 同一ユーザーの行を時系列順に並べる
-4. `data/<データセット名>.txt` として保存する
-5. `--data <データセット名>` を指定して実行する
-
-### 変換スクリプトの例
-
-```python
-import pandas as pd
-
-df = pd.read_csv('your_data.csv')
-df = df.sort_values(['user_id', 'timestamp'])
-
-user_map = {u: i+1 for i, u in enumerate(sorted(df['user_id'].unique()))}
-item_map = {it: i+1 for i, it in enumerate(sorted(df['item_id'].unique()))}
-
-df['user_id'] = df['user_id'].map(user_map)
-df['item_id'] = df['item_id'].map(item_map)
-
-df[['user_id', 'item_id']].to_csv('data/custom.txt', sep=' ', header=False, index=False)
-```
-
----
-
-## 13. 参考文献
+## 11. 参考文献
 
 - Wang-Cheng Kang, Julian McAuley. **"Self-Attentive Sequential Recommendation"**. ICDM 2018.  
   https://arxiv.org/abs/1808.09781
