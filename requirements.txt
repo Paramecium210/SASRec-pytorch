@@ -1,0 +1,8 @@
+# PyTorchはCUDAバージョンに合わせて別途インストールしてください
+# CUDA 11.3: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu113
+# CUDA 11.8: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+# CPU only:  pip install torch torchvision
+
+numpy
+matplotlib
+pandas
