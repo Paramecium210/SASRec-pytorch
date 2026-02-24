@@ -376,6 +376,20 @@ python main.py \
 - **中**：Hit Rate（HR@5 / HR@10）の推移
 - **右**：NDCG（NDCG@5 / NDCG@10）の推移
 
+### 評価結果 (Training Results)
+
+モデルの学習過程における Loss と各指標（HR, NDCG）の推移は以下の通りです。
+
+### MovieLens 1M
+<p align="center">
+  <img src="weights/training_curves_ml-1m.png" width="800">
+</p>
+
+### MOOC
+<p align="center">
+  <img src="weights/training_curves_MOOC.png" width="800">
+</p>
+
 ---
 
 ## 10. 評価指標の説明
