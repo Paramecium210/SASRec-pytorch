@@ -19,8 +19,7 @@
 10. [評価指標の説明](#10-評価指標の説明)
 11. [学習の流れ（内部処理）](#11-学習の流れ内部処理)
 12. [カスタムデータセットへの対応](#12-カスタムデータセットへの対応)
-13. [トラブルシューティング](#13-トラブルシューティング)
-14. [参考文献](#14-参考文献)
+13. [参考文献](#13-参考文献)
 
 ---
 
@@ -63,10 +62,10 @@ SASRec/
 ├── model.py           # SASRec モデル定義（Self-Attention / FFN）
 ├── utils.py           # データ読み込み・サンプリング・評価関数
 ├── dat2txt.py         # ML-1M 生データを txt 形式に変換するスクリプト
-├── test.py            # CUDA 動作確認スクリプト
 │
 ├── data/              # データディレクトリ（.gitignore 対象）
-│   └── MOOC.txt       # 学習データ（user item 形式）
+│   ├── ml-1m.txt
+│   └── MOOC.txt      
 │
 ├── weights/           # 学習済み重み・グラフ保存先（.gitignore 対象）
 │   ├── best_sasrec_MOOC.pth
@@ -275,26 +274,9 @@ python main.py --data MOOC --device cuda
 
 ### 学習中の出力例
 
-```
-Using device: cuda
-Loading data from MOOC...
-Start Training...
-Epoch 001 | Loss: 1.3862
-Epoch 002 | Loss: 1.2154
-...
-Epoch 020 | Loss: 0.8932
-Epoch 20 Valid - HR@5: 0.1823, NDCG@5: 0.1204, HR@10: 0.2741, NDCG@10: 0.1489
---> [Saved] 找到新的最佳模型权重并保存至 weights/best_sasrec_MOOC.pth
-...
-Training finished! 加载最佳轮次 (Epoch 160) 的模型进行最终测试...
-
-================ Final Test Results ================
-HR@5:    0.2134
-NDCG@5:  0.1456
-HR@10:   0.3012
-NDCG@10: 0.1723
-====================================================
-```
+<p align="center">
+  <img src="weights/ml-1m.png" width="800">
+</p>
 
 ---
 
@@ -453,47 +435,7 @@ df[['user_id', 'item_id']].to_csv('data/custom.txt', sep=' ', header=False, inde
 
 ---
 
-## 13. トラブルシューティング
-
-### GPU が認識されない
-
-```bash
-python test.py
-```
-
-`CUDA available: False` と表示される場合：
-
-- `nvidia-smi` で CUDA バージョンを確認する
-- CUDA バージョンに対応した PyTorch を再インストールする（セットアップ手順 ステップ3 参照）
-
-### `AssertionError: Torch not compiled with CUDA enabled`
-
-PyTorch の CPU 版がインストールされています。以下のコマンドで再インストールしてください：
-
-```bash
-pip uninstall torch torchvision torchaudio
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu113
-```
-
-### `FileNotFoundError: data/MOOC.txt`
-
-データファイルのパスが間違っています。`data/` ディレクトリにファイルが存在するか確認してください：
-
-```bash
-ls data/
-```
-
-### 学習が始まらない・フリーズする
-
-`WarpSampler` がマルチプロセスを使用しているため、Windows 環境では `if __name__ == '__main__':` ブロックが必要です（`main.py` では対応済みです）。PyCharm Console での `runfile()` 実行は避け、ターミナルから直接実行してください：
-
-```bash
-python main.py --data MOOC
-```
-
----
-
-## 14. 参考文献
+## 13. 参考文献
 
 - Wang-Cheng Kang, Julian McAuley. **"Self-Attentive Sequential Recommendation"**. ICDM 2018.  
   https://arxiv.org/abs/1808.09781
